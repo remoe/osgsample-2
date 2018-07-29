@@ -30,8 +30,13 @@ IF(WIN32)
 	target_include_directories(
 		app  PUBLIC
 		${GLCORE_INCLUDE_DIR}
-		${OSG_INCLUDE_DIR}
+		${OPENSCENEGRAPH_INCLUDE_DIR}
 	)
 ENDIF() 
-
+if(APPLE)
+	target_include_directories(
+		app  PUBLIC
+		${OPENSCENEGRAPH_INCLUDE_DIR}
+	)
+endif()
 target_link_libraries(app ${OPENSCENEGRAPH_LIBRARIES})
