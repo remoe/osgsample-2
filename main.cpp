@@ -13,11 +13,12 @@ static const char* vert_source = {
 	"$OSG_GLSL_VERSION\n"
 	"$OSG_PRECISION_FLOAT\n"
 	"\n"
-	"in uint test_attr;\n"  
+	"in uint test_attr;\n"
 	"out vec2 texCoord;\n"
 	"\n"
 	"void main(void)\n"
 	"{\n"
+    "    uint t = test_attr;\n" /* without this warning:  WARNING: Could not find vertex shader attribute 'test_attr' to match BindAttributeLocation request. */
 	"    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n"
 	"    texCoord = gl_MultiTexCoord0.xy;\n"
 	"}\n"
@@ -28,9 +29,10 @@ static const char* frag_source = {
 	"$OSG_GLSL_VERSION\n"
 	"uniform sampler2D tex;\n"
 	"in vec2 texCoord;\n"
+    "out vec4 color;\n"
 	"void main(void)\n"
 	"{\n"
-	"    gl_FragColor = texture(tex, texCoord).rgba;\n"
+	"    color = texture(tex, texCoord).rgba;\n"
 	"}\n"
 };
 
@@ -47,7 +49,7 @@ osg::Image* make_checker_image(unsigned int width, unsigned height)
 
 	for (i = 0; i < width; i++) {
 		for (j = 0; j < height; j++) {
-			c = ((((i & 0x8) == 0) ^ ((j & 0x8)) == 0));
+			c = ((((i & 0x8) == 0) ^ (((j & 0x8)) == 0)));
 			unsigned char* pixel = img->data(i,j);
 			pixel[0] = c * color.x();
 			pixel[1] = c * color.y();
@@ -70,12 +72,8 @@ void create_tex_coords(osg::Vec2Array* uv, unsigned int size)
 class TexturedCube : public osg::Geometry
 {
 public:
-	TexturedCube()
+	TexturedCube(int variant = 1)
 	{
-		osg::Vec4Array* cAry = new osg::Vec4Array;
-		setColorArray(cAry, osg::Array::BIND_OVERALL);
-		cAry->push_back(osg::Vec4(1, 1, 1, 1));
-
 		osg::Vec3Array* vert = new osg::Vec3Array();
 		setVertexArray(vert);
 
@@ -155,23 +153,18 @@ public:
 		uv->push_back(osg::Vec2(0.667969f, 1.0f-0.671889f));
 		uv->push_back(osg::Vec2(1.000004f, 1.0f-0.671847f));
 		uv->push_back(osg::Vec2(0.667979f, 1.0f-0.335851f));
-		/*))
-		for (int i = 0;i < 9;++i) {))
-			osg::Vec2Array* uv = new osg::Vec2Array();
-			setTexCoordArray(i, uv);
-			create_tex_coords(uv, vert->size());
-		}))
-		*/
 
-		m_attrib_name = "test_attr";
-		m_attrib_location = osg::Drawable::FOG_COORDS;
+        m_attrib_name = "test_attr";
+        m_attrib_location = osg::Drawable::COLORS;
 
 		osg::UIntArray* ids = new osg::UIntArray();
 		ids->setBinding(osg::Array::BIND_PER_VERTEX);
 		ids->setNormalize(false);
-		setVertexAttribArray(osg::Drawable::SECONDARY_COLORS, ids);
+        for(int i=0;i<vert->size();++i) {
+            ids->push_back(0);
+        }
+        setVertexAttribArray(m_attrib_location, ids);
 
-		addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::TRIANGLES, 0, vert->size()));
 
 		osg::StateSet* ss = getOrCreateStateSet();
 
@@ -183,11 +176,16 @@ public:
 
 		osg::Program* program = new osg::Program;
 		program->setName("sample");
-		program->addShader(new osg::Shader(osg::Shader::VERTEX, vert_source));
-		program->addShader(new osg::Shader(osg::Shader::FRAGMENT, frag_source));
-		program->addBindAttribLocation(m_attrib_name, m_attrib_location);
-		ss->setAttributeAndModes(program, osg::StateAttribute::ON);
+        
+        program->addBindAttribLocation(m_attrib_name, m_attrib_location);
+        program->addShader(new osg::Shader(osg::Shader::VERTEX, vert_source));
+        program->addShader(new osg::Shader(osg::Shader::FRAGMENT, frag_source));
+        ss->setAttributeAndModes(program, osg::StateAttribute::ON);
+        
+        addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::TRIANGLES, 0, vert->size()));
+
 	}
+    
 private:
 	std::string m_attrib_name;
 	unsigned int m_attrib_location;
@@ -196,11 +194,21 @@ private:
 
 int main(int argc, char** argv)
 {
-	osg::ArgumentParser arguments(&argc, argv);
+    //osg::DisplaySettings::instance()->setShaderHint(osg::DisplaySettings::SHADER_NONE);
+
+    osg::ArgumentParser arguments(&argc, argv);
 	osg::Geode* root(new osg::Geode);
-	root->addDrawable(new TexturedCube);
+	root->addDrawable(new TexturedCube());
 
 	osgViewer::Viewer viewer(arguments);
+    
+#if 1
+    // remove unused default shader.
+    osg::StateSet* cam_ss = viewer.asView()->getCamera()->getStateSet();
+    if(cam_ss) {
+        cam_ss->removeAttribute(osg::StateAttribute::PROGRAM);
+    }
+#endif
 	osg::GraphicsContext* gc = viewer.asView()->getCamera()->getGraphicsContext();
 	if (gc)
 	{
