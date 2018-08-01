@@ -13,14 +13,18 @@ static const char* vert_source = {
 	"$OSG_GLSL_VERSION\n"
 	"$OSG_PRECISION_FLOAT\n"
 	"\n"
+    "uniform mat4 osg_ModelViewProjectionMatrix;\n"
+    "uniform mat3 osg_NormalMatrix;\n"
+    "in vec4 osg_Vertex;\n"
+    "in vec4 osg_MultiTexCoord0;\n"
 	"in uint test_attr;\n"
 	"out vec2 texCoord;\n"
 	"\n"
 	"void main(void)\n"
 	"{\n"
     "    uint t = test_attr;\n" /* without this warning:  WARNING: Could not find vertex shader attribute 'test_attr' to match BindAttributeLocation request. */
-	"    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n"
-	"    texCoord = gl_MultiTexCoord0.xy;\n"
+	"    gl_Position = osg_ModelViewProjectionMatrix * osg_Vertex;\n"
+	"    texCoord = osg_MultiTexCoord0.xy;\n"
 	"}\n"
 	"\n"
 };
@@ -164,7 +168,6 @@ public:
             ids->push_back(0);
         }
         setVertexAttribArray(m_attrib_location, ids);
-
 
 		osg::StateSet* ss = getOrCreateStateSet();
 
