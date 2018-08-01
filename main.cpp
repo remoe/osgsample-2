@@ -14,7 +14,6 @@ static const char* vert_source = {
 	"$OSG_PRECISION_FLOAT\n"
 	"\n"
     "uniform mat4 osg_ModelViewProjectionMatrix;\n"
-    "uniform mat3 osg_NormalMatrix;\n"
     "in vec4 osg_Vertex;\n"
     "in vec4 osg_MultiTexCoord0;\n"
 	"in uint test_attr;\n"
@@ -36,7 +35,7 @@ static const char* frag_source = {
     "out vec4 color;\n"
 	"void main(void)\n"
 	"{\n"
-	"    color = texture(tex, texCoord).rgba;\n"
+	"    color = vec4(texture(tex, texCoord).rgb, 1.0);\n"
 	"}\n"
 };
 
@@ -159,7 +158,7 @@ public:
 		uv->push_back(osg::Vec2(0.667979f, 1.0f-0.335851f));
 
         m_attrib_name = "test_attr";
-        m_attrib_location = osg::Drawable::COLORS;
+        m_attrib_location = osg::Drawable::WEIGHTS; 
 
 		osg::UIntArray* ids = new osg::UIntArray();
 		ids->setBinding(osg::Array::BIND_PER_VERTEX);
@@ -172,10 +171,8 @@ public:
 		osg::StateSet* ss = getOrCreateStateSet();
 
 		// set up the texture state.
-		osg::Texture2D* texture = new osg::Texture2D;
-		texture->setDataVariance(osg::Object::DYNAMIC); // protect from being optimized away as static state.
-		texture->setImage(make_checker_image(128,128));
-		ss->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+		osg::Texture2D* texture = new osg::Texture2D(make_checker_image(128, 128));
+		ss->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON | osg::StateAttribute::PROTECTED);
 
 		osg::Program* program = new osg::Program;
 		program->setName("sample");
@@ -184,7 +181,7 @@ public:
         program->addShader(new osg::Shader(osg::Shader::VERTEX, vert_source));
         program->addShader(new osg::Shader(osg::Shader::FRAGMENT, frag_source));
         ss->setAttributeAndModes(program, osg::StateAttribute::ON);
-        
+      
         addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::TRIANGLES, 0, vert->size()));
 
 	}
@@ -197,8 +194,6 @@ private:
 
 int main(int argc, char** argv)
 {
-    //osg::DisplaySettings::instance()->setShaderHint(osg::DisplaySettings::SHADER_NONE);
-
     osg::ArgumentParser arguments(&argc, argv);
 	osg::Geode* root(new osg::Geode);
 	root->addDrawable(new TexturedCube());
